@@ -1,0 +1,13 @@
+name: Changed terrraform modules
+description: |
+  Provided concatenated list of directories find terraform modules that changed or which dependencies have changed
+
+runs:
+  using: "composite"
+  steps:
+    - name: Find changed modules
+      id: get-changed-modules
+      shell: bash
+      run: bash ${{ github.action_path }}/find_deprecated_ghas.sh
+      
+      
