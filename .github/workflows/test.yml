@@ -1,0 +1,16 @@
+name: Reusable workflow to validate terraform modules
+
+on:
+ push:
+  branches: main
+
+jobs:
+  tf_modules_matrix_job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get changed dirs with tf files
+        id: changed-dirs
+        uses: sonalsingroha/newone/.github/actions/detect-deprecated-ghas@main
+        
