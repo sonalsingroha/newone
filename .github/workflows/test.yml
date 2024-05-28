@@ -1,16 +1,69 @@
-name: Reusable workflow to validate terraform modules
+name: Reusable workflow to validate deprecation warnings
 
 on:
- push:
-  branches: main
+  push:
+    branches:
+      - main
 
 jobs:
-  tf_modules_matrix_job:
+  deprecation_warnings_check:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get changed dirs with tf files
-        id: changed-dirs
-        uses: sonalsingroha/newone/.github/actions/detect-deprecated-ghas@main
-        
+      - name: Set up GitHub CLI
+        uses: actions/setup-gh-cli@v1
+
+      - name: Run Deprecation Check Script
+        id: deprecation-check
+        run: |
+          #!/bin/bash
+
+          # Environment setup
+          GH_HOST=github.com
+          ORG=merit
+          COUNT=149 # Adjust this value if you have more repos
+
+          # Fetch all repository names
+          repos=$(gh repo list "$ORG" -L "$COUNT" --json name --jq '.[].name')
+
+          # Set the time threshold for recent check runs (1 hour ago)
+          ago=$(date -r $(($(date +%s) - 3600)) -Iseconds)
+          echo "DEBUG: ago=$ago"
+
+          # Loop through each repository
+          for repo in $repos; do
+            echo "Checking repo $repo"
+            
+            # Fetch the check suite IDs for recent workflow runs
+            check_suite_ids=$(gh api "/repos/$ORG/$repo/actions/runs" --jq ".workflow_runs | map(select(.created_at > \"$ago\")) | .[].check_suite_id")
+            
+            if [[ -z "$check_suite_ids" ]]; then
+              echo "No recent check suites found for $repo"
+              continue
+            fi
+            
+            # Loop through each check suite ID
+            for check_suite_id in $check_suite_ids; do
+              echo "Checking check suite ID: $check_suite_id in repo: $repo"
+              
+              # Fetch the annotation URLs for each check run in the check suite
+              annotation_urls=$(gh api "/repos/$ORG/$repo/check-suites/$check_suite_id/check-runs" --jq '.check_runs.[].output.annotations_url')
+              
+              # Loop through each annotation URL to fetch messages
+              for url in $annotation_urls; do
+                if [[ -n "$url" ]]; then
+                  messages=$(gh api "$url" --jq '.[].message')
+                  
+                  # Check and print messages if they contain "deprecation" warning
+                  for message in $messages; do
+                    if [[ "$message" == *"deprecation"* ]]; then
+                      echo "Deprecation warning in $repo: $message"
+                    fi
+                  done
+                fi
+              done
+            done
+            echo ""
+          done
