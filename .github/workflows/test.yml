@@ -12,13 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GitHub CLI
-        uses: actions/setup-gh-cli@v1
 
       - name: Run Deprecation Check Script
         id: deprecation-check
         run: |
-          #!/bin/bash
 
           # Environment setup
           GH_HOST=github.com
